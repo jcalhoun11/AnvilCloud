@@ -1,0 +1,51 @@
+# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
+# More GitHub Actions for Azure: https://github.com/Azure/actions
+
+name: Build and deploy container app to Azure Web App - anvilcloud
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: 'ubuntu-latest'
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Log in to registry
+      uses: docker/login-action@v2
+      with:
+        registry: https://anvilregistry.azurecr.io/
+        username: ${{ secrets.AzureAppService_ContainerUsername_03406f6629e845bea9d303d9700d92f0 }}
+        password: ${{ secrets.AzureAppService_ContainerPassword_b5b0139975aa4e678609d432fe02072b }}
+
+    - name: Build and push container image to registry
+      uses: docker/build-push-action@v3
+      with:
+        push: true
+        tags: anvilregistry.azurecr.io/${{ secrets.AzureAppService_ContainerUsername_03406f6629e845bea9d303d9700d92f0 }}/anvilcloud:${{ github.sha }}
+        file: ./Dockerfile
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: 'production'
+      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+
+    steps:
+    - name: Deploy to Azure Web App
+      id: deploy-to-webapp
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: 'anvilcloud'
+        slot-name: 'production'
+        publish-profile: ${{ secrets.AzureAppService_PublishProfile_578de2209cf441ec97f695e82b8b2b89 }}
+        images: 'anvilregistry.azurecr.io/${{ secrets.AzureAppService_ContainerUsername_03406f6629e845bea9d303d9700d92f0 }}/anvilcloud:${{ github.sha }}'
